@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">PGravitation</string>
+    <string-array name="module_scope" translatable="false">
+        <item>com.google.android.apps.nexuslauncher</item>
+        <item>com.android.launcher3</item>
+    </string-array>
+</resources>
