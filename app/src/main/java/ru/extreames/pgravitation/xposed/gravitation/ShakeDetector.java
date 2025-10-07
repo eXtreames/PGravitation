@@ -8,7 +8,6 @@ import android.hardware.SensorManager;
 
 import ru.extreames.pgravitation.utiils.Constants;
 import ru.extreames.pgravitation.utiils.Utils;
-import ru.extreames.pgravitation.xposed.XposedPrefs;
 
 public class ShakeDetector implements SensorEventListener {
     public interface OnShakeListener {
@@ -17,9 +16,6 @@ public class ShakeDetector implements SensorEventListener {
 
     private static final float ALPHA_LOW = 0.4f;
     private static final float ALPHA_HIGH = 0.8f;
-
-    private static float SHAKE_THRESHOLD_G; // INIT_ON_CONSTRUCTOR
-    private static int SHAKE_WAIT_TIME_MS; // INIT_ON_CONSTRUCTOR
 
     private final SensorManager sensorManager;
     private final OnShakeListener listener;
@@ -31,9 +27,6 @@ public class ShakeDetector implements SensorEventListener {
     public ShakeDetector(Context ctx, OnShakeListener listener) {
         this.sensorManager = (SensorManager) ctx.getSystemService(Context.SENSOR_SERVICE);
         this.listener = listener;
-
-        SHAKE_THRESHOLD_G = XposedPrefs.getFloat("SHAKE_THRESHOLD_G", Constants.SHAKE_THRESHOLD_G) / SensorManager.GRAVITY_EARTH;
-        SHAKE_WAIT_TIME_MS = XposedPrefs.getInt("SHAKE_WAIT_TIME_MS", Constants.SHAKE_WAIT_TIME_MS);
     }
 
     public void start() {
@@ -69,7 +62,7 @@ public class ShakeDetector implements SensorEventListener {
         float gForce = (float) Math.sqrt(x * x + y * y + z * z) / SensorManager.GRAVITY_EARTH;
         long now = System.currentTimeMillis();
 
-        if (gForce > SHAKE_THRESHOLD_G && now - lastShakeTime > SHAKE_WAIT_TIME_MS) {
+        if (gForce > Constants.SHAKE_THRESHOLD_G && now - lastShakeTime > Constants.SHAKE_WAIT_TIME_MS) {
             lastShakeTime = now;
             if (listener != null)
                 listener.onShake();

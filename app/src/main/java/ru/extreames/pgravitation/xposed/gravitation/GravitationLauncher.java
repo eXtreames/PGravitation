@@ -1,67 +1,51 @@
 package ru.extreames.pgravitation.xposed.gravitation;
 
 import android.app.Activity;
+import android.view.ViewGroup;
 
 import ru.extreames.pgravitation.utiils.Utils;
 
 public class GravitationLauncher {
     private final Activity launcher;
+    private final Object workspace;
 
-    private Object workspace = null;
-    private ShakeDetector shakeDetector = null;
-    private GravitationProcessor gravitationProcessor = null;
+    private final ShakeDetector shakeDetector;
+    private final GravitationController gravitationController;
 
-    private boolean isGravitationEnabled = false;
-
-    public GravitationLauncher(Activity launcher) {
+    public GravitationLauncher(Activity launcher, Object workspace) {
         this.launcher = launcher;
-
-        if (!grabWorkspace()) {
-            Utils.log(Utils.DEBUG_LEVEL.ERROR, "Not found workspace =(");
-            return;
-        }
+        this.workspace = workspace;
 
         this.shakeDetector = new ShakeDetector(launcher.getApplicationContext(), this::onShake);
-        this.gravitationProcessor = new GravitationProcessor(workspace, launcher.getApplicationContext());
-
-        Utils.log(Utils.DEBUG_LEVEL.INFO, "GravitationLauncher initialized");
+        this.gravitationController = new GravitationController((ViewGroup) workspace, launcher.getApplicationContext());
     }
 
-    public void enable() {
-        if (shakeDetector != null) {
-            this.shakeDetector.start();
-        }
+    public boolean isSame(Activity launcher, Object workspace) {
+        return this.launcher == launcher && this.workspace == workspace;
     }
 
-    public void disable() {
-        if (shakeDetector != null) {
-            this.shakeDetector.stop();
+    public void onStart() {
+        this.shakeDetector.start();
+    }
+
+    public void onStop() {
+        if (this.gravitationController.isEnabled()) {
+            this.gravitationController.disable();
         }
-        if (isGravitationEnabled) {
-            this.gravitationProcessor.disable();
-            isGravitationEnabled = false;
-        }
+        this.shakeDetector.stop();
+    }
+
+    public boolean onSwipe() {
+        return !this.gravitationController.isEnabled(); // reject this swipe if gravitation enabled
     }
 
     private void onShake() {
-        isGravitationEnabled = !isGravitationEnabled;
-
-        if (isGravitationEnabled) {
-            gravitationProcessor.enable();
+        if (!gravitationController.isEnabled()) {
+            gravitationController.enable();
         }
         else {
-            gravitationProcessor.disable();
+            gravitationController.disable();
         }
-
-        Utils.log(Utils.DEBUG_LEVEL.INFO, "Changed state to ->> " + ((isGravitationEnabled) ? "SHAKING" : "IDLING"));
-    }
-
-    private boolean grabWorkspace() {
-        try {
-            workspace = Utils.tryCall(launcher, "getWorkspace");
-        } catch (Throwable t) {
-            Utils.log(Utils.DEBUG_LEVEL.ERROR, "Not found workspace =(");
-        }
-        return (workspace != null);
+        Utils.log(Utils.DEBUG_LEVEL.INFO, "GravitationController state changed: " + gravitationController.isEnabled());
     }
 }
