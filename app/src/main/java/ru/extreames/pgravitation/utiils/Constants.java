@@ -3,7 +3,7 @@ package ru.extreames.pgravitation.utiils;
 import android.hardware.SensorManager;
 
 public class Constants {
-    public static final int COLLISION_ITERATIONS = 6;
+    public static final int COLLISION_ITERATIONS = 3;
     public static final int ANIMATION_DURATION = 600;
     public static final float ICON_SCALE = 0.94F;
 

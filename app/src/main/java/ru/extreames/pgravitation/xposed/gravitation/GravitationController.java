@@ -25,8 +25,6 @@ public class GravitationController implements SensorEventListener {
         void process(View view);
     }
 
-    private static float PADDING_BOTTOM; // INIT_ON_CONSTRUCTOR
-
     private final ViewGroup workspace;
     private final SensorManager sensorManager;
     private final Sensor rotationSensor;
@@ -42,12 +40,18 @@ public class GravitationController implements SensorEventListener {
     private int originalBottomPadding = -1;
     private int activeAnimations = 0;
 
+    // adaptive centering
+    private float lastPitch = 0f;
+    private float lastRoll  = 0f;
+    private float prevPitch = 0f;
+    private float prevRoll  = 0f;
+    private float centerPitch = 0f;
+    private float centerRoll  = 0f;
+
     public GravitationController(ViewGroup workspace, Context context) {
         this.workspace = workspace;
         this.sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         this.rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-
-        PADDING_BOTTOM = (80 * context.getResources().getDisplayMetrics().density);
     }
 
     public boolean isEnabled() {
@@ -58,9 +62,9 @@ public class GravitationController implements SensorEventListener {
         if (enabled)
             return;
 
-        adjustWorkspacePadding();
         collectIcons();
         backupInitialState();
+        adjustWorkspacePadding();
         startSensors();
 
         enabled = true;
@@ -223,11 +227,34 @@ public class GravitationController implements SensorEventListener {
         float[] orientation = new float[3];
         SensorManager.getOrientation(rotationMatrix, orientation);
 
-        float pitch = orientation[1];
-        float roll = orientation[2];
+        float rawPitch = orientation[1];
+        float rawRoll  = orientation[2];
+
+        final float LP_ALPHA = 0.1f;
+        lastPitch += LP_ALPHA * (rawPitch - lastPitch);
+        lastRoll  += LP_ALPHA * (rawRoll  - lastRoll);
+
+        float pitch = lastPitch;
+        float roll  = lastRoll;
+        float deltaPitch = Math.abs(pitch - prevPitch);
+        float deltaRoll  = Math.abs(roll  - prevRoll);
+
+        prevPitch = pitch;
+        prevRoll  = roll;
+
+        float movementMagnitude = (deltaPitch + deltaRoll) * 0.5f;
+        float recenterSpeed = 0.001f + (0.02f / (1f + movementMagnitude * 500f));
+
+        centerPitch += (pitch - centerPitch) * recenterSpeed;
+        centerRoll  += (roll  - centerRoll)  * recenterSpeed;
+
+        pitch -= centerPitch;
+        roll  -= centerRoll;
 
         long currentTime = System.currentTimeMillis();
         float deltaTime = Math.min((currentTime - lastUpdate) / 1000f, 0.05f);
+        if (deltaTime < 0.01f)
+            return;
 
         lastUpdate = currentTime;
         updatePhysics(pitch, roll, deltaTime);
@@ -336,17 +363,20 @@ public class GravitationController implements SensorEventListener {
         int[] location = new int[2];
         workspace.getLocationOnScreen(location);
 
-        int iconRadius = 0;
+        int paddingBottom = workspace.getPaddingBottom();
+        int paddingUpper = (int) (50 * workspace.getContext().getResources().getDisplayMetrics().density);
+        int paddingRight = 0;
+
         if (!icons.isEmpty()) {
             View sampleIcon = icons.get(0);
-            iconRadius = (int) (Math.min(sampleIcon.getWidth(), sampleIcon.getHeight()) / 2f);
+            paddingRight = (int) ((Math.min(sampleIcon.getWidth(), sampleIcon.getHeight()) / 2F) / 1.8F);
         }
 
         workspaceBounds.set(
                 location[0],
                 location[1],
-                location[0] + workspace.getWidth() - iconRadius,
-                (int) (location[1] + workspace.getHeight() - PADDING_BOTTOM)
+                location[0] + workspace.getWidth() - paddingRight,
+                location[1] + workspace.getHeight() - paddingBottom + paddingUpper
         );
     }
 }
